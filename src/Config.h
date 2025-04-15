@@ -75,7 +75,7 @@ struct Config
     };
 
     std::string fontFile;
-    std::set<std::uint32_t> chars;
+    std::set<std::uint32_t> chars; // utf32
     Color color;
     Color backgroundColor;
     bool backgroundTransparent = true;
@@ -94,5 +94,7 @@ struct Config
     bool cropTexturesWidth = false;
     bool cropTexturesHeight = false;
     bool verbose = false;
+    bool slashedZero = false;
+    bool tabularNumbers = false;
     TextureNameSuffix textureNameSuffix = TextureNameSuffix::IndexAligned;
 };

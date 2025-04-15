@@ -133,16 +133,15 @@ public:
     }
 
     GlyphMetrics renderGlyph(std::uint32_t* buffer, std::uint32_t surfaceW, std::uint32_t surfaceH, int x, int y,
-            std::uint32_t ch, std::uint32_t color) const
+            std::uint32_t glyph, std::uint32_t color) const
     {
         FT_Int32 loadFlags = FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT;
         if (monochrome_)
-            loadFlags |= FT_LOAD_MONOCHROME;
+            loadFlags |= FT_LOAD_TARGET_MONO;
 
-        const int error = FT_Load_Char(face, ch, loadFlags);
+        const int error = FT_Load_Glyph(face, glyph, loadFlags);
         if (error)
-            throw std::runtime_error(StringMaker() << "Error Load glyph " << ch << " " << error);
-
+            throw std::runtime_error(StringMaker() << "Error Load glyph " << glyph << " " << error);
 
         auto slot = face->glyph;
         const auto metrics = &slot->metrics;
@@ -185,11 +184,6 @@ public:
         }
 
         return glyphMetrics;
-    }
-
-    int isGlyphProvided(FT_ULong ch) const
-    {
-        return FT_Get_Char_Index(face, ch);
     }
 
     enum class KerningMode
