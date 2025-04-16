@@ -28,14 +28,16 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const s
     return result;
 }
 
-std::set<std::uint32_t> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
+std::set<std::pair<std::uint32_t, std::uint32_t>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
 {
     hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
     hb_buffer_t *hb_buffer = hb_buffer_create();
+    std::vector<uint32_t> utf32codesVector;
 
     for (const auto& id : utf32codes) {
         uint32_t code = id;
         hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
+        utf32codesVector.push_back(code);
     }
 
     hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
@@ -63,10 +65,10 @@ std::set<std::uint32_t> App::shapeGlyphs(const ft::Font& font, const std::set<st
     unsigned int glyph_count = 0;
     hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
 
-    std::set<std::uint32_t> shaped_glyphs;
+    std::set<std::pair<std::uint32_t, std::uint32_t>> shaped_glyphs;
     for (unsigned int i = 0; i < glyph_count; i++) {
         hb_codepoint_t glyph_index = glyph_info[i].codepoint;
-        shaped_glyphs.insert(glyph_index);
+        shaped_glyphs.insert({glyph_index, utf32codesVector[i]});
     }
 
     hb_buffer_destroy(hb_buffer);
@@ -80,19 +82,20 @@ App::Glyphs App::collectGlyphInfo(const ft::Font& font, const std::set<std::uint
 {
     Glyphs result;
 
-    const std::set<std::uint32_t> shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
+    const std::set<std::pair<std::uint32_t, std::uint32_t>> shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
     for (const auto& id : shaped_glyphs)
     {
-        if (id) 
+        if (id.first) 
         {
             GlyphInfo glyphInfo;
-            ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, id, 0);
+            ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, id.first, 0);
+            glyphInfo.utf32 = id.second;
             glyphInfo.width = glyphMetrics.width;
             glyphInfo.height = glyphMetrics.height;
             glyphInfo.xAdvance = glyphMetrics.horiAdvance;
             glyphInfo.xOffset = glyphMetrics.horiBearingX;
             glyphInfo.yOffset = font.ascent - glyphMetrics.horiBearingY;
-            result[id] = glyphInfo;
+            result[id.first] = glyphInfo;
         }
     }
 
@@ -324,9 +327,9 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         //TODO: page = 0 for empty glyphs.
         const auto &glyph = kv.second;
         FontInfo::Char c;
-        c.id = kv.first;
         if (!glyph.isEmpty())
         {
+            c.id = static_cast<std::uint32_t>(glyph.utf32); 
             c.x = static_cast<std::uint16_t>(glyph.x);
             c.y = static_cast<std::uint16_t>(glyph.y);
             c.width = static_cast<std::uint16_t>(glyph.width + config.padding.left + config.padding.right);
@@ -355,12 +358,12 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         {
             for (const auto& ch1 : chars)
             {
-                const auto k = static_cast<std::int16_t>(font.getKerning(ch0, ch1, kerningMode));
+                const auto k = static_cast<std::int16_t>(font.getKerning(ch0, ch1.second, kerningMode));
                 if (k)
                 {
                     FontInfo::Kerning kerning;
                     kerning.first = ch0;
-                    kerning.second = ch1;
+                    kerning.second = ch1.second;
                     kerning.amount = k;
                     f.kernings.push_back(kerning);
                 }
