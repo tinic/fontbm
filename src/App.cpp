@@ -28,7 +28,7 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const s
     return result;
 }
 
-std::set<std::pair<std::uint32_t, std::uint32_t>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
+std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
 {
     hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
     hb_buffer_t *hb_buffer = hb_buffer_create();
@@ -65,16 +65,15 @@ std::set<std::pair<std::uint32_t, std::uint32_t>> App::shapeGlyphs(const ft::Fon
     unsigned int glyph_count = 0;
     hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
 
-    std::set<std::pair<std::uint32_t, std::uint32_t>> shaped_glyphs;
+    std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
     for (unsigned int i = 0; i < glyph_count; i++) {
         hb_codepoint_t glyph_index = glyph_info[i].codepoint;
-        shaped_glyphs.insert({glyph_index, utf32codesVector[i]});
+        shaped_glyphs.insert({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
     }
 
     hb_buffer_destroy(hb_buffer);
     hb_font_destroy(hb_font);
 
-    // returns glyph indecies, not utf32 codepoints
     return shaped_glyphs;
 }
 
@@ -82,20 +81,21 @@ App::Glyphs App::collectGlyphInfo(const ft::Font& font, const std::set<std::uint
 {
     Glyphs result;
 
-    const std::set<std::pair<std::uint32_t, std::uint32_t>> shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
+    const auto shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
     for (const auto& id : shaped_glyphs)
     {
-        if (id.first) 
+        if (std::get<0>(id)) 
         {
             GlyphInfo glyphInfo;
-            ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, id.first, 0);
-            glyphInfo.utf32 = id.second;
+            ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, std::get<0>(id), 0, std::get<2>(id));
+            glyphInfo.utf32 = std::get<1>(id);
             glyphInfo.width = glyphMetrics.width;
             glyphInfo.height = glyphMetrics.height;
             glyphInfo.xAdvance = glyphMetrics.horiAdvance;
             glyphInfo.xOffset = glyphMetrics.horiBearingX;
             glyphInfo.yOffset = font.ascent - glyphMetrics.horiBearingY;
-            result[id.first] = glyphInfo;
+            glyphInfo.secondaryFont = std::get<2>(id);
+            result[std::get<0>(id)] = glyphInfo;
         }
     }
 
@@ -224,7 +224,7 @@ std::vector<std::string> App::renderTextures(const Glyphs& glyphs, const Config&
                 const auto y = glyph.y + config.padding.up;
 
                 font.renderGlyph(&surface[0], s.w, s.h, x, y,
-                        kv.first, config.color.getBGR());
+                        kv.first, config.color.getBGR(), glyph.secondaryFont);
             }
         }
 
@@ -358,12 +358,12 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         {
             for (const auto& ch1 : chars)
             {
-                const auto k = static_cast<std::int16_t>(font.getKerning(ch0, ch1.second, kerningMode));
+                const auto k = static_cast<std::int16_t>(font.getKerning(ch0, std::get<1>(ch1), kerningMode));
                 if (k)
                 {
                     FontInfo::Kerning kerning;
                     kerning.first = ch0;
-                    kerning.second = ch1.second;
+                    kerning.second = std::get<1>(ch1);
                     kerning.amount = k;
                     f.kernings.push_back(kerning);
                 }
@@ -401,7 +401,7 @@ void App::execute(const int argc, char* argv[])
     if (config.verbose)
         std::cout << "freetype " << library.getVersionString() << "\n";
 
-    ft::Font font(library, config.fontFile, config.fontSize, 0, config.monochrome);
+    ft::Font font(library, config.fontFile, config.secondaryFontFile, config.fontSize, 0, 0, config.monochrome);
 
     auto glyphs = collectGlyphInfo(font, config.chars, config.tabularNumbers, config.slashedZero);
     const auto pages = arrangeGlyphs(glyphs, config);

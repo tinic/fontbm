@@ -75,6 +75,7 @@ struct Config
     };
 
     std::string fontFile;
+    std::string secondaryFontFile;
     std::set<std::uint32_t> chars; // utf32
     Color color;
     Color backgroundColor;

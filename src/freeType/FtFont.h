@@ -41,7 +41,7 @@ public:
         std::int32_t rsbDelta;
     };
 
-    Font(Library& library, const std::string& fontFile, int ptsize, const int faceIndex, const bool monochrome)
+    Font(Library& library, const std::string& fontFile, const std::string& secondaryFontFile, int ptsize, const int faceIndex, const int secondaryFaceIndex, const bool monochrome)
         : library(library), monochrome_(monochrome)
     {
         if (!library.library)
@@ -124,26 +124,60 @@ public:
 
         totalHeight = yMax - yMin;
 
+        if (secondaryFontFile.length() == 0)
+        {
+            return;
+        }
 
+        error = FT_New_Face(library.library, secondaryFontFile.c_str(), secondaryFaceIndex, &secondaryFace);
+        if (error == FT_Err_Unknown_File_Format)
+            throw Exception("Secondary: Unsupported font format", error);
+        if (error)
+            throw Exception("Secondary: Couldn't load font file", error);
+
+        if (!secondaryFace->charmap)
+        {
+            FT_Done_Face(secondaryFace);
+            throw std::runtime_error("Secondary: Font doesn't contain a Unicode charmap");
+        }
+
+        if (FT_IS_SCALABLE(secondaryFace))
+        {
+            error = FT_Set_Pixel_Sizes(face, ptsize, ptsize);
+            if (error) {
+                FT_Done_Face(secondaryFace);
+                throw Exception("Secondary: Couldn't set font size", error);
+            }
+        }
+        else
+        {
+            if (ptsize >= secondaryFace->num_fixed_sizes)
+                ptsize = secondaryFace->num_fixed_sizes - 1;
+            secondary_font_size_family = ptsize;
+            error = FT_Set_Pixel_Sizes( secondaryFace,
+                                    static_cast<FT_UInt>(secondaryFace->available_sizes[ptsize].width),
+                                    static_cast<FT_UInt>(secondaryFace->available_sizes[ptsize].height ));
+        }
     }
 
     ~Font()
     {
         FT_Done_Face(face);
+        FT_Done_Face(secondaryFace);
     }
 
     GlyphMetrics renderGlyph(std::uint32_t* buffer, std::uint32_t surfaceW, std::uint32_t surfaceH, int x, int y,
-            std::uint32_t glyph, std::uint32_t color) const
+            std::uint32_t glyph, std::uint32_t color, bool secondary) const
     {
         FT_Int32 loadFlags = FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT;
         if (monochrome_)
             loadFlags |= FT_LOAD_TARGET_MONO;
 
-        const int error = FT_Load_Glyph(face, glyph, loadFlags);
+        const int error = FT_Load_Glyph(secondary ? secondaryFace : face, glyph, loadFlags);
         if (error)
             throw std::runtime_error(StringMaker() << "Error Load glyph " << glyph << " " << error);
 
-        auto slot = face->glyph;
+        auto slot = (secondary ? secondaryFace : face)->glyph;
         const auto metrics = &slot->metrics;
 
         GlyphMetrics glyphMetrics;
@@ -214,8 +248,8 @@ public:
 
         const bool useRsbLsb = (kerningMode == KerningMode::Regular && k.x) || (kerningMode == KerningMode::Extended);
 
-        const std::int32_t firstRsbDelta = useRsbLsb ? renderGlyph(nullptr, 0, 0, 0, 0, left, 0).rsbDelta : 0;
-        const std::int32_t secondLsbDelta = useRsbLsb ? renderGlyph(nullptr, 0, 0, 0, 0, right, 0).lsbDelta : 0;
+        const std::int32_t firstRsbDelta = useRsbLsb ? renderGlyph(nullptr, 0, 0, 0, 0, left, 0, false).rsbDelta : 0;
+        const std::int32_t secondLsbDelta = useRsbLsb ? renderGlyph(nullptr, 0, 0, 0, 0, right, 0, false).lsbDelta : 0;
 
         return static_cast<int>(std::floor(static_cast<float>(secondLsbDelta - firstRsbDelta + k.x + 32) / 64.f));
     }
@@ -264,7 +298,7 @@ public:
         FT_ULong charcodeMinY = 0;
         while (gindex)
         {
-            GlyphMetrics glyphMetrics = renderGlyph(nullptr, 0, 0, 0, 0, charcode, 0);
+            GlyphMetrics glyphMetrics = renderGlyph(nullptr, 0, 0, 0, 0, charcode, 0, false);
             if (glyphMetrics.horiBearingY > maxHoriBearingY) {
                 maxHoriBearingY = glyphMetrics.horiBearingY;
                 charcodeMaxHoriBearingY = charcode;
@@ -302,6 +336,7 @@ public:
 
     Library& library;
     FT_Face face = nullptr;
+    FT_Face secondaryFace = nullptr;
     int height;
     int yMax;
     int yMin;
@@ -311,6 +346,7 @@ public:
 
     /* For non-scalable formats, we must remember which font index size */
     int font_size_family;
+    int secondary_font_size_family;
 
     /* The font style */
     int face_style;

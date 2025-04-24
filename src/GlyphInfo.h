@@ -21,6 +21,8 @@ struct GlyphInfo
 
     int xAdvance = 0;
 
+    bool secondaryFont = false;
+
     bool isEmpty() const
     {
         return (width == 0) || (height == 0);
