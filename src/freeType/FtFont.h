@@ -324,6 +324,13 @@ public:
         return std::string(face->family_name);
     }
 
+    std::string getStyleNameOr(const std::string& defaultName) const
+    {
+        if (!face->style_name)
+            return defaultName;
+        return std::string(face->style_name);
+    }
+
     bool isBold() const
     {
         return (style & TTF_STYLE_BOLD) != 0;

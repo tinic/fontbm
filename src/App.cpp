@@ -1,21 +1,23 @@
 #include "App.h"
-#include "ProgramOptions.h"
-#include <string>
-#include <iomanip>
+
+#include <hb-ft.h>  // HarfBuzz FreeType integration
 #include <hb.h>
-#include <hb-ft.h> // HarfBuzz FreeType integration
+
+#include <iomanip>
+#include <string>
+
 #include "FontInfo.h"
-#include "utils/extractFileName.h"
+#include "ProgramOptions.h"
 #include "external/lodepng/lodepng.h"
+#include "utils/extractFileName.h"
 #include "utils/getNumberLen.h"
 
-//TODO: read .bmfc files (BMFont configuration file)
+// TODO: read .bmfc files (BMFont configuration file)
 
-std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const std::uint32_t additionalWidth, const std::uint32_t additionalHeight, const Config& config)
-{
+std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs& glyphs, const std::uint32_t additionalWidth, const std::uint32_t additionalHeight,
+                                                   const Config& config) {
     std::vector<rbp::RectSize> result;
-    for (const auto& kv : glyphs)
-    {
+    for (const auto& kv : glyphs) {
         const auto& glyphInfo = kv.second;
         if (!glyphInfo.isEmpty()) {
             auto width = glyphInfo.width + additionalWidth;
@@ -28,13 +30,13 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const s
     return result;
 }
 
-std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
+std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
 {
     hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
     hb_buffer_t *hb_buffer = hb_buffer_create();
 
     std::vector<uint32_t> utf32codesVector;
-    std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
+    std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
 
     for (const auto& id : utf32codes) {
         // Handle numbers only for tabular case
@@ -43,7 +45,7 @@ std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(con
             hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
             utf32codesVector.push_back(code);
         } else {
-            shaped_glyphs.push_back({FT_Get_Char_Index(font.face, id), id, false});
+            shaped_glyphs.insert({FT_Get_Char_Index(font.face, id), id, false});
         }
     }
 
@@ -74,10 +76,8 @@ std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(con
 
     for (unsigned int i = 0; i < glyph_count; i++) {
         hb_codepoint_t glyph_index = glyph_info[i].codepoint;
-        shaped_glyphs.push_back({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
+        shaped_glyphs.insert({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
     }
-
-    std::sort(shaped_glyphs.begin(), shaped_glyphs.end());
 
     hb_buffer_destroy(hb_buffer);
     hb_font_destroy(hb_font);
@@ -110,8 +110,7 @@ App::Glyphs App::collectGlyphInfo(const ft::Font& font, const std::set<std::uint
     return result;
 }
 
-std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& config)
-{
+std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& config) {
     const auto additionalWidth = config.spacing.hor + config.padding.left + config.padding.right;
     const auto additionalHeight = config.spacing.ver + config.padding.up + config.padding.down;
     std::vector<Config::Size> result;
@@ -120,21 +119,18 @@ std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& confi
 
     rbp::MaxRectsBinPack mrbp;
 
-    for (;;)
-    {
+    for (;;) {
         std::vector<rbp::Rect> arrangedRectangles;
         auto glyphRectanglesCopy = glyphRectangles;
         Config::Size lastSize;
 
         uint64_t allGlyphSquare = 0;
-        for (const auto& i : glyphRectangles)
-            allGlyphSquare += static_cast<uint64_t>(i.width) * i.height;
+        for (const auto& i : glyphRectangles) allGlyphSquare += static_cast<uint64_t>(i.width) * i.height;
 
-        for (size_t i = 0; i < config.textureSizeList.size(); ++i)
-        {
+        for (size_t i = 0; i < config.textureSizeList.size(); ++i) {
             const auto& ss = config.textureSizeList[i];
 
-            //TODO: check workAreaW,H
+            // TODO: check workAreaW,H
             const auto workAreaW = ss.w - config.spacing.hor;
             const auto workAreaH = ss.h - config.spacing.ver;
 
@@ -152,8 +148,7 @@ std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& confi
                 break;
         }
 
-        if (arrangedRectangles.empty())
-        {
+        if (arrangedRectangles.empty()) {
             if (!glyphRectangles.empty())
                 throw std::runtime_error("can not fit glyphs into texture");
             break;
@@ -161,8 +156,7 @@ std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& confi
 
         std::uint32_t maxX = 0;
         std::uint32_t maxY = 0;
-        for (const auto& r: arrangedRectangles)
-        {
+        for (const auto& r : arrangedRectangles) {
             std::uint32_t x = r.x + config.spacing.hor;
             std::uint32_t y = r.y + config.spacing.ver;
 
@@ -186,15 +180,14 @@ std::vector<Config::Size> App::arrangeGlyphs(Glyphs& glyphs, const Config& confi
     return result;
 }
 
-void App::savePng(const std::string& fileName, const std::uint32_t* buffer, const std::uint32_t w, const std::uint32_t h, const bool withAlpha)
-{
+void App::savePng(const std::string& fileName, const std::uint32_t* buffer, const std::uint32_t w, const std::uint32_t h, const bool withAlpha) {
     std::vector<std::uint8_t> png;
     lodepng::State state;
 
-    state.encoder.add_id = 0; // Don't add LodePNG version chunk to save more bytes
+    state.encoder.add_id = 0;  // Don't add LodePNG version chunk to save more bytes
     state.encoder.auto_convert = 0;
     state.info_png.color.colortype = withAlpha ? LCT_RGBA : LCT_RGB;
-    state.encoder.zlibsettings.windowsize = 32768; // Use maximum possible window size for best compression
+    state.encoder.zlibsettings.windowsize = 32768;  // Use maximum possible window size for best compression
 
     auto error = lodepng::encode(png, reinterpret_cast<const unsigned char*>(buffer), w, h, state);
     if (error)
@@ -205,65 +198,57 @@ void App::savePng(const std::string& fileName, const std::uint32_t* buffer, cons
         throw std::runtime_error("png save to file error " + std::to_string(error) + ": " + lodepng_error_text(error));
 }
 
-std::vector<std::string> App::renderTextures(const Glyphs& glyphs, const Config& config, const ft::Font& font, const std::vector<Config::Size>& pages)
-{
+std::vector<std::string> App::renderTextures(const Glyphs& glyphs, const Config& config, const ft::Font& font, const std::vector<Config::Size>& pages) {
     std::vector<std::string> fileNames;
     if (pages.empty())
         return {};
 
     const auto pageNameDigits = getNumberLen(pages.size() - 1);
 
-    for (std::uint32_t page = 0; page < pages.size(); ++page)
-    {
+    for (std::uint32_t page = 0; page < pages.size(); ++page) {
         const Config::Size& s = pages[page];
         std::vector<std::uint32_t> surface(s.w * s.h, config.color.getBGR());
 
         // Render every glyph
-        //TODO: do not repeat same glyphs (with same index)
-        for (const auto& kv: glyphs)
-        {
+        // TODO: do not repeat same glyphs (with same index)
+        for (const auto& kv : glyphs) {
             const auto& glyph = kv.second;
             if (glyph.page != page)
                 continue;
 
-            if (!glyph.isEmpty())
-            {
+            if (!glyph.isEmpty()) {
                 const auto x = glyph.x + config.padding.left;
                 const auto y = glyph.y + config.padding.up;
 
-                font.renderGlyph(&surface[0], s.w, s.h, x, y,
-                        kv.first, config.color.getBGR(), glyph.secondaryFont);
+                font.renderGlyph(&surface[0], s.w, s.h, x, y, kv.first, config.color.getBGR(), glyph.secondaryFont);
             }
         }
 
-        if (!config.backgroundTransparent)
-        {
+        if (!config.backgroundTransparent) {
             auto cur = surface.data();
             const auto end = &surface.back();
 
             const auto fgColor = config.color.getBGR();
             const auto bgColor = config.backgroundColor.getBGR();
 
-            while (cur <= end)
-            {
+            while (cur <= end) {
                 const std::uint32_t a0 = (*cur) >> 24u;
                 const std::uint32_t a1 = 256 - a0;
                 const std::uint32_t rb1 = (a1 * (bgColor & 0xFF00FFu)) >> 8u;
                 const std::uint32_t rb2 = (a0 * (fgColor & 0xFF00FFu)) >> 8u;
-                const std::uint32_t g1  = (a1 * (bgColor & 0x00FF00u)) >> 8u;
-                const std::uint32_t g2  = (a0 * (fgColor & 0x00FF00u)) >> 8u;
-                *cur =  ((rb1 | rb2) & 0xFF00FFu) + ((g1 | g2) & 0x00FF00u);
+                const std::uint32_t g1 = (a1 * (bgColor & 0x00FF00u)) >> 8u;
+                const std::uint32_t g2 = (a0 * (fgColor & 0x00FF00u)) >> 8u;
+                *cur = ((rb1 | rb2) & 0xFF00FFu) + ((g1 | g2) & 0x00FF00u);
                 ++cur;
             }
         }
 
         std::stringstream ss;
         ss << config.output;
-        if (config.textureNameSuffix != Config::TextureNameSuffix::None)
-        {
+        if (config.textureNameSuffix != Config::TextureNameSuffix::None) {
             ss << "_";
             if (config.textureNameSuffix == Config::TextureNameSuffix::IndexAligned)
-                ss << std::setfill ('0') << std::setw(pageNameDigits);
+                ss << std::setfill('0') << std::setw(pageNameDigits);
             ss << page;
         }
         ss << ".png";
@@ -276,9 +261,8 @@ std::vector<std::string> App::renderTextures(const Glyphs& glyphs, const Config&
     return fileNames;
 }
 
-void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft::Font& font,
-        const std::vector<std::string>& fileNames, const std::vector<Config::Size>& pages)
-{
+void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft::Font& font, const std::vector<std::string>& fileNames,
+                            const std::vector<Config::Size>& pages) {
     if (!fileNames.empty())
         for (size_t i = 0; i < fileNames.size() - 1; ++i)
             for (size_t k = i + 1; k < fileNames.size(); ++k)
@@ -286,12 +270,9 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
                     throw std::runtime_error("textures have the same names");
 
     bool pagesHaveDifferentSize = false;
-    if (pages.size() > 1)
-    {
-        for (size_t i = 1; i < pages.size(); ++i)
-        {
-            if (pages[0].w != pages[i].w || pages[0].h != pages[i].h)
-            {
+    if (pages.size() > 1) {
+        for (size_t i = 1; i < pages.size(); ++i) {
+            if (pages[0].w != pages[i].w || pages[0].h != pages[i].h) {
                 pagesHaveDifferentSize = true;
                 break;
             }
@@ -302,7 +283,7 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
 
     f.info.face = font.getFamilyNameOr("unknown");
     f.info.size = -static_cast<std::int16_t>(config.fontSize);
-    f.info.smooth = config.monochrome;
+    f.info.smooth = !config.monochrome;
     f.info.unicode = true;
     f.info.bold = font.isBold();
     f.info.italic = font.isItalic();
@@ -317,8 +298,8 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
 
     f.common.lineHeight = static_cast<std::uint16_t>(font.height);
     f.common.base = static_cast<std::uint16_t>(font.ascent);
-    if (!pagesHaveDifferentSize && !pages.empty())
-    {
+    f.common.descent = static_cast<std::int16_t>(font.descent);
+    if (!pagesHaveDifferentSize && !pages.empty()) {
         f.common.scaleW = static_cast<std::uint16_t>(pages.front().w);
         f.common.scaleH = static_cast<std::uint16_t>(pages.front().h);
     }
@@ -330,12 +311,45 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
 
     f.pages = fileNames;
 
-    for (const auto& kv: glyphs)
+    std::vector<GlyphInfo> sortedGlyphs;
+    sortedGlyphs.reserve(glyphs.size());
+    for (const auto& kv : glyphs) sortedGlyphs.push_back(kv.second);
+    std::sort(sortedGlyphs.begin(), sortedGlyphs.end(), [](const GlyphInfo& a, const GlyphInfo& b) { return a.utf32 < b.utf32; });
+
+    // Official unicode characters with property White_Space=yes
+    static const std::set<char32_t> white_space = {
+        U'\u0009', // CHARACTER TABULATION (HT)
+        U'\u000A', // LINE FEED (LF)
+        U'\u000B', // LINE TABULATION (VT)
+        U'\u000C', // FORM FEED (FF)
+        U'\u000D', // CARRIAGE RETURN (CR)
+        U'\u0020', // SPACE
+        U'\u0085', // NEXT LINE (NEL)
+        U'\u00A0', // NO‑BREAK SPACE
+        U'\u1680', // OGHAM SPACE MARK
+        U'\u2000', // EN QUAD
+        U'\u2001', // EM QUAD
+        U'\u2002', // EN SPACE
+        U'\u2003', // EM SPACE
+        U'\u2004', // THREE‑PER‑EM SPACE
+        U'\u2005', // FOUR‑PER‑EM SPACE
+        U'\u2006', // SIX‑PER‑EM SPACE
+        U'\u2007', // FIGURE SPACE
+        U'\u2008', // PUNCTUATION SPACE
+        U'\u2009', // THIN SPACE
+        U'\u200A', // HAIR SPACE
+        U'\u2028', // LINE SEPARATOR
+        U'\u2029', // PARAGRAPH SEPARATOR
+        U'\u202F', // NARROW NO‑BREAK SPACE
+        U'\u205F', // MEDIUM MATHEMATICAL SPACE
+        U'\u3000'  // IDEOGRAPHIC SPACE
+    };
+    
+    for (const auto& glyph: sortedGlyphs)
     {
         //TODO: page = 0 for empty glyphs.
-        const auto &glyph = kv.second;
         FontInfo::Char c;
-        if (!glyph.isEmpty())
+        if (!glyph.isEmpty() || white_space.count(glyph.utf32) > 0)
         {
             c.id = static_cast<std::uint32_t>(glyph.utf32); 
             c.x = static_cast<std::uint16_t>(glyph.x);
@@ -352,8 +366,7 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         f.chars.push_back(c);
     }
 
-    if (config.kerningPairs != Config::KerningPairs::Disabled)
-    {
+    if (config.kerningPairs != Config::KerningPairs::Disabled) {
         auto chars = shapeGlyphs(font, config.chars, config.tabularNumbers, config.slashedZero);
 
         ft::Font::KerningMode kerningMode = ft::Font::KerningMode::Basic;
@@ -362,13 +375,10 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         if (config.kerningPairs == Config::KerningPairs::Extended)
             kerningMode = ft::Font::KerningMode::Extended;
 
-        for (const auto& ch0 : config.chars)
-        {
-            for (const auto& ch1 : chars)
-            {
+        for (const auto& ch0 : config.chars) {
+            for (const auto& ch1 : chars) {
                 const auto k = static_cast<std::int16_t>(font.getKerning(ch0, std::get<1>(ch1), kerningMode));
-                if (k)
-                {
+                if (k) {
                     FontInfo::Kerning kerning;
                     kerning.first = ch0;
                     kerning.second = std::get<1>(ch1);
@@ -401,8 +411,7 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
     }
 }
 
-void App::execute(const int argc, char* argv[])
-{
+void App::execute(const int argc, char* argv[]) {
     const auto config = ProgramOptions::parseCommandLine(argc, argv);
 
     ft::Library library;
