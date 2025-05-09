@@ -17,7 +17,7 @@ private:
 
     static std::vector<rbp::RectSize> getGlyphRectangles(const Glyphs& glyphs, std::uint32_t additionalWidth, std::uint32_t additionalHeight, const Config& config);
     static Glyphs collectGlyphInfo(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero);
-    static std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero);
+    static std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero);
     static std::vector<Config::Size> arrangeGlyphs(Glyphs& glyphs, const Config& config);
     static std::vector<std::string> renderTextures(const Glyphs& glyphs, const Config& config, const ft::Font& font, const std::vector<Config::Size>& pages);
     static void savePng(const std::string& fileName, const std::uint32_t* buffer, std::uint32_t w, std::uint32_t h, bool withAlpha);

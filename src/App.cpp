@@ -28,16 +28,23 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const s
     return result;
 }
 
-std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
+std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
 {
     hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
     hb_buffer_t *hb_buffer = hb_buffer_create();
+
     std::vector<uint32_t> utf32codesVector;
+    std::vector<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
 
     for (const auto& id : utf32codes) {
-        uint32_t code = id;
-        hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
-        utf32codesVector.push_back(code);
+        // Handle numbers only for tabular case
+        if (id >= 0x30 && id <= 0x39) {
+            uint32_t code = id;
+            hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
+            utf32codesVector.push_back(code);
+        } else {
+            shaped_glyphs.push_back({FT_Get_Char_Index(font.face, id), id, false});
+        }
     }
 
     hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
@@ -65,11 +72,12 @@ std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const 
     unsigned int glyph_count = 0;
     hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
 
-    std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
     for (unsigned int i = 0; i < glyph_count; i++) {
         hb_codepoint_t glyph_index = glyph_info[i].codepoint;
-        shaped_glyphs.insert({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
+        shaped_glyphs.push_back({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
     }
+
+    std::sort(shaped_glyphs.begin(), shaped_glyphs.end());
 
     hb_buffer_destroy(hb_buffer);
     hb_font_destroy(hb_font);
