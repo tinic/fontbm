@@ -109,8 +109,9 @@ void FontInfo::writeToXmlFile(const std::string &fileName) const
     infoElement->SetAttribute("padding", padding.str().c_str());
     infoElement->SetAttribute("spacing", spacing.str().c_str());
     infoElement->SetAttribute("outline", info.outline);
-    if (extraInfo)
+    if (extraInfo) {
         infoElement->SetAttribute("style", info.style.c_str());
+    }
     root->InsertEndChild(infoElement);
 
     tinyxml2::XMLElement* commonElement = doc.NewElement("common");
@@ -203,8 +204,9 @@ void FontInfo::writeToTextFile(const std::string &fileName) const
             << static_cast<int>(info.spacing.horizontal)
             << "," << static_cast<int>(info.spacing.vertical)
         << " outline=" << static_cast<int>(info.outline);
-    if (extraInfo)
+    if (extraInfo) {
         f << " style=\"" << info.style << "\"";
+    }
     f << std::endl;
 
     f << "common"
@@ -448,8 +450,9 @@ void FontInfo::writeToJsonFile(const std::string &fileName) const
     infoNode["spacing"] = {info.spacing.horizontal, info.spacing.vertical};
     infoNode["outline"] = info.outline;
     infoNode["face"] = info.face;
-    if (extraInfo)
+    if (extraInfo) {
         infoNode["style"] = info.style;
+    }
 
     nlohmann::json commonNode;
     commonNode["lineHeight"] = common.lineHeight;

@@ -282,6 +282,7 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
     FontInfo f;
 
     f.info.face = font.getFamilyNameOr("unknown");
+    f.info.style = font.getStyleNameOr("unknown");
     f.info.size = -static_cast<std::int16_t>(config.fontSize);
     f.info.smooth = !config.monochrome;
     f.info.unicode = true;
@@ -418,7 +419,7 @@ void App::execute(const int argc, char* argv[]) {
     if (config.verbose)
         std::cout << "freetype " << library.getVersionString() << "\n";
 
-    ft::Font font(library, config.fontFile, config.secondaryFontFile, config.fontSize, 0, 0, config.monochrome);
+    ft::Font font(library, config.fontFile, config.secondaryFontFile, config.fontSize, 0, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
 
     auto glyphs = collectGlyphInfo(font, config.chars, config.tabularNumbers, config.slashedZero);
     const auto pages = arrangeGlyphs(glyphs, config);

@@ -91,6 +91,8 @@ struct Config
     std::uint32_t maxTextureCount = 0;
     bool useMaxTextureCount = false;
     bool monochrome = false;
+    bool lightHinting = false;
+    bool forceAutoHinter = false;
     bool extraInfo = false;
     bool cropTexturesWidth = false;
     bool cropTexturesHeight = false;

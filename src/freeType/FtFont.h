@@ -41,8 +41,8 @@ public:
         std::int32_t rsbDelta;
     };
 
-    Font(Library& library, const std::string& fontFile, const std::string& secondaryFontFile, int ptsize, const int faceIndex, const int secondaryFaceIndex, const bool monochrome)
-        : library(library), monochrome_(monochrome)
+    Font(Library& library, const std::string& fontFile, const std::string& secondaryFontFile, int ptsize, const int faceIndex, const int secondaryFaceIndex, const bool monochrome, const bool light_hinting, const bool force_auto_hinter)
+        : library(library), monochrome_(monochrome), light_hinting_(light_hinting), force_auto_hinter_(force_auto_hinter)
     {
         if (!library.library)
             throw std::runtime_error("Library is not initialized");
@@ -169,9 +169,11 @@ public:
     GlyphMetrics renderGlyph(std::uint32_t* buffer, std::uint32_t surfaceW, std::uint32_t surfaceH, int x, int y,
             std::uint32_t glyph, std::uint32_t color, bool secondary) const
     {
-        FT_Int32 loadFlags = FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT;
+        FT_Int32 loadFlags = FT_LOAD_RENDER;
         if (monochrome_)
-            loadFlags |= FT_LOAD_TARGET_MONO;
+            loadFlags |= FT_LOAD_TARGET_MONO | ( force_auto_hinter_ ? FT_LOAD_FORCE_AUTOHINT : 0 );
+        else 
+            loadFlags |= force_auto_hinter_ ? FT_LOAD_FORCE_AUTOHINT : (light_hinting_ ? FT_LOAD_TARGET_LIGHT : 0);
 
         const int error = FT_Load_Glyph(secondary ? secondaryFace : face, glyph, loadFlags);
         if (error)
@@ -360,6 +362,8 @@ public:
     int style;
     int outline;
     bool monochrome_;
+    bool light_hinting_;
+    bool force_auto_hinter_;
 
     /* Whether kerning is desired */
     int kerning;
