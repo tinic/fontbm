@@ -33,78 +33,114 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const s
     return result;
 }
 
-std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font &font, const std::set<std::uint32_t> &utf32codes, bool tabularNumbers,
+std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font &font, const ft::Font &secondaryFont, const std::set<std::uint32_t> &utf32codes, bool tabularNumbers,
                                                                           bool slashedZero)
 {
-    hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
-    hb_buffer_t *hb_buffer = hb_buffer_create();
 
     std::vector<uint32_t> utf32codesVector;
     std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
 
     for (const auto &id : utf32codes)
     {
+        bool glyphIndexFound = false;
         // Handle numbers only for tabular case
         if (id >= 0x30 && id <= 0x39)
         {
-            uint32_t code = id;
-            hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
-            utf32codesVector.push_back(code);
+            utf32codesVector.push_back(id);
+            // Not good, we always assume we have numbers
+            glyphIndexFound = true;
         }
         else
         {
-            shaped_glyphs.insert({FT_Get_Char_Index(font.face, id), id, false});
+            FT_UInt glyphIndex = FT_Get_Char_Index(font.face, id);
+            if (glyphIndex == 0) 
+            {
+                if (secondaryFont.valid)
+                {
+                    glyphIndex = FT_Get_Char_Index(secondaryFont.face, id);
+                    if (glyphIndex) 
+                    {
+                        shaped_glyphs.insert({glyphIndex, id, true});
+                        glyphIndexFound = true;
+                    }
+                }
+            } 
+            else 
+            {
+                shaped_glyphs.insert({glyphIndex, id, false});
+                glyphIndexFound = true;
+            }
+        }
+        if (!glyphIndexFound) {
+            throw std::runtime_error("glyph index not found for " + std::to_string(int(id)));
         }
     }
 
-    hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
-    hb_buffer_set_script(hb_buffer, HB_SCRIPT_COMMON);
-    hb_buffer_set_language(hb_buffer, hb_language_from_string("en", -1));
-
-    hb_feature_t feature[3] = {};
-    feature[0].tag = HB_TAG('t', 'n', 'u', 'm'); // Tag for Tabular Figures
-    feature[0].value = tabularNumbers ? 1 : 0;   // 1 to enable, 0 to disable
-    feature[0].start = 0;                        // Apply from the start of the buffer
-    feature[0].end = (unsigned int)-1;           // Apply to the end of the buffer
-
-    feature[1].tag = HB_TAG('z', 'e', 'r', 'o'); // Tag for slashed zeros
-    feature[1].value = slashedZero ? 1 : 0;      // 1 to enable, 0 to disable
-    feature[1].start = 0;                        // Apply from the start of the buffer
-    feature[1].end = (unsigned int)-1;           // Apply to the end of the buffer
-
-    feature[2].tag = HB_TAG('l', 'i', 'g', 'a'); // Tag for enabling ligatures
-    feature[2].value = 0;                        // 1 to enable, 0 to disable
-    feature[2].start = 0;                        // Apply from the start of the buffer
-    feature[2].end = (unsigned int)-1;           // Apply to the end of the buffer
-
-    hb_shape(hb_font, hb_buffer, &feature[0], 3);
-
-    unsigned int glyph_count = 0;
-    hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
-
-    for (unsigned int i = 0; i < glyph_count; i++)
+    if (utf32codesVector.size()) 
     {
-        hb_codepoint_t glyph_index = glyph_info[i].codepoint;
-        shaped_glyphs.insert({glyph_index, utf32codesVector[i], glyph_info[i].codepoint == 0 ? true : false});
-    }
+        hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
+        hb_buffer_t *hb_buffer = hb_buffer_create();
 
-    hb_buffer_destroy(hb_buffer);
-    hb_font_destroy(hb_font);
+        for (auto id : utf32codesVector) 
+        {
+            uint32_t code = id;
+            hb_buffer_add_utf32(hb_buffer, &code, 1, 0, -1);
+        }
+
+        hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
+        hb_buffer_set_script(hb_buffer, HB_SCRIPT_COMMON);
+        hb_buffer_set_language(hb_buffer, hb_language_from_string("en", -1));
+
+        hb_feature_t feature[3] = {};
+        feature[0].tag = HB_TAG('t', 'n', 'u', 'm'); // Tag for Tabular Figures
+        feature[0].value = tabularNumbers ? 1 : 0;   // 1 to enable, 0 to disable
+        feature[0].start = 0;                        // Apply from the start of the buffer
+        feature[0].end = (unsigned int)-1;           // Apply to the end of the buffer
+
+        feature[1].tag = HB_TAG('z', 'e', 'r', 'o'); // Tag for slashed zeros
+        feature[1].value = slashedZero ? 1 : 0;      // 1 to enable, 0 to disable
+        feature[1].start = 0;                        // Apply from the start of the buffer
+        feature[1].end = (unsigned int)-1;           // Apply to the end of the buffer
+
+        feature[2].tag = HB_TAG('l', 'i', 'g', 'a'); // Tag for enabling ligatures
+        feature[2].value = 0;                        // 1 to enable, 0 to disable
+        feature[2].start = 0;                        // Apply from the start of the buffer
+        feature[2].end = (unsigned int)-1;           // Apply to the end of the buffer
+
+        hb_shape(hb_font, hb_buffer, &feature[0], 3);
+
+        unsigned int glyph_count = 0;
+        hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
+
+        for (unsigned int i = 0; i < glyph_count; i++)
+        {
+            hb_codepoint_t glyph_index = glyph_info[i].codepoint;
+            shaped_glyphs.insert({glyph_index, utf32codesVector[i], false});
+        }
+
+        hb_buffer_destroy(hb_buffer);
+        hb_font_destroy(hb_font);
+    }
 
     return shaped_glyphs;
 }
 
-App::Glyphs App::collectGlyphInfo(const ft::Font &font, const std::set<std::uint32_t> &utf32codes, bool tabularNumbers, bool slashedZero)
+App::Glyphs App::collectGlyphInfo(const ft::Font &font, const ft::Font &secondaryFont, const std::set<std::uint32_t> &utf32codes, bool tabularNumbers, bool slashedZero)
 {
     Glyphs result;
 
-    const auto shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
+    const auto shaped_glyphs = shapeGlyphs(font, secondaryFont, utf32codes, tabularNumbers, slashedZero);
     for (const auto &id : shaped_glyphs)
     {
         if (std::get<0>(id))
         {
             GlyphInfo glyphInfo;
-            ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, std::get<0>(id), 0, std::get<2>(id));
+            ft::Font::GlyphMetrics glyphMetrics{};
+            if (std::get<2>(id) && secondaryFont.valid) {
+                glyphMetrics = secondaryFont.renderGlyph(nullptr, 0, 0, 0, 0, std::get<0>(id), 0);
+            } else {
+                glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, std::get<0>(id), 0);
+            }
             glyphInfo.utf32 = std::get<1>(id);
             glyphInfo.width = glyphMetrics.width;
             glyphInfo.height = glyphMetrics.height;
@@ -214,7 +250,7 @@ void App::savePng(const std::string &fileName, const std::uint32_t *buffer, cons
         throw std::runtime_error("png save to file error " + std::to_string(error) + ": " + lodepng_error_text(error));
 }
 
-std::vector<std::string> App::renderTextures(const Glyphs &glyphs, const Config &config, const ft::Font &font, const std::vector<Config::Size> &pages)
+std::vector<std::string> App::renderTextures(const Glyphs &glyphs, const Config &config, const ft::Font &font, const ft::Font &secondaryFont, const std::vector<Config::Size> &pages)
 {
     std::vector<std::string> fileNames;
     if (pages.empty())
@@ -240,7 +276,11 @@ std::vector<std::string> App::renderTextures(const Glyphs &glyphs, const Config 
                 const auto x = glyph.x + config.padding.left;
                 const auto y = glyph.y + config.padding.up;
 
-                font.renderGlyph(&surface[0], s.w, s.h, x, y, kv.first, config.color.getBGR(), glyph.secondaryFont);
+                if (glyph.secondaryFont && secondaryFont.valid) {
+                    secondaryFont.renderGlyph(&surface[0], s.w, s.h, x, y, kv.first, config.color.getBGR());
+                } else {
+                    font.renderGlyph(&surface[0], s.w, s.h, x, y, kv.first, config.color.getBGR());
+                }
             }
         }
 
@@ -284,7 +324,7 @@ std::vector<std::string> App::renderTextures(const Glyphs &glyphs, const Config 
     return fileNames;
 }
 
-void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft::Font &font, const std::vector<std::string> &fileNames,
+void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft::Font &font, const ft::Font &secondaryFont, const std::vector<std::string> &fileNames,
                             const std::vector<Config::Size> &pages)
 {
     if (!fileNames.empty())
@@ -399,7 +439,7 @@ void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft
 
     if (config.kerningPairs != Config::KerningPairs::Disabled)
     {
-        auto chars = shapeGlyphs(font, config.chars, config.tabularNumbers, config.slashedZero);
+        auto chars = shapeGlyphs(font, secondaryFont, config.chars, config.tabularNumbers, config.slashedZero);
 
         ft::Font::KerningMode kerningMode = ft::Font::KerningMode::Basic;
         if (config.kerningPairs == Config::KerningPairs::Regular)
@@ -426,6 +466,12 @@ void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft
                     // Sorry harfbuzz devs; I know this is the worst thing
                     // to do and will break in many ways. But it works for
                     // our use case.
+
+                    // No kerning pairs if secondary font is involved
+                    if ( std::get<1>(ch0).secondaryFont ||
+                         std::get<1>(ch1).secondaryFont ) {
+                        continue;
+                    }
 
                     hb_codepoint_t codepoint_l = std::get<0>(ch0);
                     hb_codepoint_t codepoint_r = std::get<0>(ch1);
@@ -516,16 +562,22 @@ void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft
         }
         else
         { // Don't do the old extended method using FT, the above will give way better results
-            for (const auto &ch0 : config.chars)
+            for (const auto &ch0 : glyphs)
             {
-                for (const auto &ch1 : chars)
+                for (const auto &ch1 : glyphs)
                 {
-                    const auto k = static_cast<std::int16_t>(font.getKerning(ch0, std::get<1>(ch1), kerningMode));
+                    // No kerning pairs if secondary font is involved
+                    if ( std::get<1>(ch0).secondaryFont ||
+                         std::get<1>(ch1).secondaryFont ) {
+                        continue;
+                    }
+
+                    const auto k = static_cast<std::int16_t>(font.getKerning(std::get<1>(ch0).utf32, std::get<1>(ch1).utf32, kerningMode));
                     if (k)
                     {
                         FontInfo::Kerning kerning;
-                        kerning.first = ch0;
-                        kerning.second = std::get<1>(ch1);
+                        kerning.first = std::get<1>(ch0).utf32;
+                        kerning.second = std::get<1>(ch1).utf32;
                         kerning.amount = k;
                         f.kernings.push_back(kerning);
                     }
@@ -565,13 +617,14 @@ void App::execute(const int argc, char *argv[])
     if (config.verbose)
         std::cout << "freetype " << library.getVersionString() << "\n";
 
-    ft::Font font(library, config.fontFile, config.secondaryFontFile, config.fontSize, 0, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
+    ft::Font font(library, config.fontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
+    ft::Font secondaryFont(library, config.secondaryFontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
 
-    auto glyphs = collectGlyphInfo(font, config.chars, config.tabularNumbers, config.slashedZero);
+    auto glyphs = collectGlyphInfo(font, secondaryFont, config.chars, config.tabularNumbers, config.slashedZero);
     const auto pages = arrangeGlyphs(glyphs, config);
     if (config.useMaxTextureCount && pages.size() > config.maxTextureCount)
         throw std::runtime_error("too many generated textures (more than --max-texture-count)");
 
-    const auto fileNames = renderTextures(glyphs, config, font, pages);
-    writeFontInfoFile(glyphs, config, font, fileNames, pages);
+    const auto fileNames = renderTextures(glyphs, config, font, secondaryFont, pages);
+    writeFontInfoFile(glyphs, config, font, secondaryFont, fileNames, pages);
 }
