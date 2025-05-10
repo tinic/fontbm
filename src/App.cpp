@@ -72,7 +72,10 @@ std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const 
             }
         }
         if (!glyphIndexFound) {
-            throw std::runtime_error("glyph index not found for " + std::to_string(int(id)));
+            std::cout << "warning: glyph " << id << " not found";
+            if (id == 65279)
+                std::cout << " (it looks like Unicode byte order mark (BOM))";
+            std::cout << "." << std::endl;
         }
     }
 
