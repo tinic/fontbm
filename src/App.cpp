@@ -30,10 +30,10 @@ std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs& glyphs, const s
     return result;
 }
 
-std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
-{
-    hb_font_t *hb_font = hb_ft_font_create(font.face, nullptr);
-    hb_buffer_t *hb_buffer = hb_buffer_create();
+std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers,
+                                                                          bool slashedZero) {
+    hb_font_t* hb_font = hb_ft_font_create(font.face, nullptr);
+    hb_buffer_t* hb_buffer = hb_buffer_create();
 
     std::vector<uint32_t> utf32codesVector;
     std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shaped_glyphs;
@@ -50,7 +50,7 @@ std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const 
     }
 
     hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
-    hb_buffer_set_script(hb_buffer, HB_SCRIPT_LATIN);
+    hb_buffer_set_script(hb_buffer, HB_SCRIPT_COMMON);
     hb_buffer_set_language(hb_buffer, hb_language_from_string("en", -1));
 
     hb_feature_t feature[3] = {};
@@ -72,7 +72,7 @@ std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const 
     hb_shape(hb_font, hb_buffer, &feature[0], 3);
 
     unsigned int glyph_count = 0;
-    hb_glyph_info_t *glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
+    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
 
     for (unsigned int i = 0; i < glyph_count; i++) {
         hb_codepoint_t glyph_index = glyph_info[i].codepoint;
@@ -85,15 +85,12 @@ std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> App::shapeGlyphs(const 
     return shaped_glyphs;
 }
 
-App::Glyphs App::collectGlyphInfo(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero)
-{
+App::Glyphs App::collectGlyphInfo(const ft::Font& font, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero) {
     Glyphs result;
 
     const auto shaped_glyphs = shapeGlyphs(font, utf32codes, tabularNumbers, slashedZero);
-    for (const auto& id : shaped_glyphs)
-    {
-        if (std::get<0>(id)) 
-        {
+    for (const auto& id : shaped_glyphs) {
+        if (std::get<0>(id)) {
             GlyphInfo glyphInfo;
             ft::Font::GlyphMetrics glyphMetrics = font.renderGlyph(nullptr, 0, 0, 0, 0, std::get<0>(id), 0, std::get<2>(id));
             glyphInfo.utf32 = std::get<1>(id);
@@ -315,44 +312,44 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
     std::vector<GlyphInfo> sortedGlyphs;
     sortedGlyphs.reserve(glyphs.size());
     for (const auto& kv : glyphs) sortedGlyphs.push_back(kv.second);
-    std::sort(sortedGlyphs.begin(), sortedGlyphs.end(), [](const GlyphInfo& a, const GlyphInfo& b) { return a.utf32 < b.utf32; });
+    std::sort(sortedGlyphs.begin(), sortedGlyphs.end(), [](const GlyphInfo& a, const GlyphInfo& b) {
+        return a.utf32 < b.utf32;
+    });
 
     // Official unicode characters with property White_Space=yes
     static const std::set<char32_t> white_space = {
-        U'\u0009', // CHARACTER TABULATION (HT)
-        U'\u000A', // LINE FEED (LF)
-        U'\u000B', // LINE TABULATION (VT)
-        U'\u000C', // FORM FEED (FF)
-        U'\u000D', // CARRIAGE RETURN (CR)
-        U'\u0020', // SPACE
-        U'\u0085', // NEXT LINE (NEL)
-        U'\u00A0', // NO‑BREAK SPACE
-        U'\u1680', // OGHAM SPACE MARK
-        U'\u2000', // EN QUAD
-        U'\u2001', // EM QUAD
-        U'\u2002', // EN SPACE
-        U'\u2003', // EM SPACE
-        U'\u2004', // THREE‑PER‑EM SPACE
-        U'\u2005', // FOUR‑PER‑EM SPACE
-        U'\u2006', // SIX‑PER‑EM SPACE
-        U'\u2007', // FIGURE SPACE
-        U'\u2008', // PUNCTUATION SPACE
-        U'\u2009', // THIN SPACE
-        U'\u200A', // HAIR SPACE
-        U'\u2028', // LINE SEPARATOR
-        U'\u2029', // PARAGRAPH SEPARATOR
-        U'\u202F', // NARROW NO‑BREAK SPACE
-        U'\u205F', // MEDIUM MATHEMATICAL SPACE
-        U'\u3000'  // IDEOGRAPHIC SPACE
+        U'\u0009',  // CHARACTER TABULATION (HT)
+        U'\u000A',  // LINE FEED (LF)
+        U'\u000B',  // LINE TABULATION (VT)
+        U'\u000C',  // FORM FEED (FF)
+        U'\u000D',  // CARRIAGE RETURN (CR)
+        U'\u0020',  // SPACE
+        U'\u0085',  // NEXT LINE (NEL)
+        U'\u00A0',  // NO‑BREAK SPACE
+        U'\u1680',  // OGHAM SPACE MARK
+        U'\u2000',  // EN QUAD
+        U'\u2001',  // EM QUAD
+        U'\u2002',  // EN SPACE
+        U'\u2003',  // EM SPACE
+        U'\u2004',  // THREE‑PER‑EM SPACE
+        U'\u2005',  // FOUR‑PER‑EM SPACE
+        U'\u2006',  // SIX‑PER‑EM SPACE
+        U'\u2007',  // FIGURE SPACE
+        U'\u2008',  // PUNCTUATION SPACE
+        U'\u2009',  // THIN SPACE
+        U'\u200A',  // HAIR SPACE
+        U'\u2028',  // LINE SEPARATOR
+        U'\u2029',  // PARAGRAPH SEPARATOR
+        U'\u202F',  // NARROW NO‑BREAK SPACE
+        U'\u205F',  // MEDIUM MATHEMATICAL SPACE
+        U'\u3000'   // IDEOGRAPHIC SPACE
     };
-    
-    for (const auto& glyph: sortedGlyphs)
-    {
-        //TODO: page = 0 for empty glyphs.
+
+    for (const auto& glyph : sortedGlyphs) {
+        // TODO: page = 0 for empty glyphs.
         FontInfo::Char c;
-        if (!glyph.isEmpty() || white_space.count(glyph.utf32) > 0)
-        {
-            c.id = static_cast<std::uint32_t>(glyph.utf32); 
+        if (!glyph.isEmpty() || white_space.count(glyph.utf32) > 0) {
+            c.id = static_cast<std::uint32_t>(glyph.utf32);
             c.x = static_cast<std::uint16_t>(glyph.x);
             c.y = static_cast<std::uint16_t>(glyph.y);
             c.width = static_cast<std::uint16_t>(glyph.width + config.padding.left + config.padding.right);
@@ -376,15 +373,120 @@ void App::writeFontInfoFile(const Glyphs& glyphs, const Config& config, const ft
         if (config.kerningPairs == Config::KerningPairs::Extended)
             kerningMode = ft::Font::KerningMode::Extended;
 
-        for (const auto& ch0 : config.chars) {
-            for (const auto& ch1 : chars) {
-                const auto k = static_cast<std::int16_t>(font.getKerning(ch0, std::get<1>(ch1), kerningMode));
-                if (k) {
-                    FontInfo::Kerning kerning;
-                    kerning.first = ch0;
-                    kerning.second = std::get<1>(ch1);
-                    kerning.amount = k;
-                    f.kernings.push_back(kerning);
+        // Extended means we capture calculated kerning values if we can
+        if (kerningMode == ft::Font::KerningMode::Extended) {
+
+            std::set<uint32_t> not_found;
+
+            size_t regularCount = 0;
+            size_t specialCount = 0;
+            size_t reshapeCount = 0;
+
+            hb_font_t* hb_font = hb_ft_font_create(font.face, nullptr);
+            int x_scale = 0;
+            int y_scale = 0;
+            hb_font_get_scale(hb_font, &x_scale, &y_scale);
+            for (const auto& ch0 : glyphs) {
+                for (const auto& ch1 : glyphs) {
+                    // Sorry harfbuzz devs; I know this is the worst thing
+                    // to do and will break in many ways. But it works for
+                    // our use case.
+
+                    hb_codepoint_t codepoint_l = std::get<0>(ch0);
+                    hb_codepoint_t codepoint_r = std::get<0>(ch1);
+                    hb_codepoint_t utf32_l = std::get<1>(ch0).utf32;
+                    hb_codepoint_t utf32_r = std::get<1>(ch1).utf32;
+
+                    hb_buffer_t* hb_buffer = hb_buffer_create();
+                    hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
+                    hb_buffer_set_script(hb_buffer, HB_SCRIPT_LATIN);
+                    hb_buffer_set_language(hb_buffer, hb_language_from_string("en", -1));
+                    hb_buffer_add_utf32(hb_buffer, &utf32_l, 1, 0, -1);
+                    hb_buffer_add_utf32(hb_buffer, &utf32_r, 1, 0, -1);
+
+                    hb_buffer_set_direction(hb_buffer, HB_DIRECTION_LTR);
+                    hb_buffer_set_script(hb_buffer, HB_SCRIPT_COMMON);
+                    hb_buffer_set_language(hb_buffer, hb_language_from_string("en", -1));
+                
+                    hb_feature_t feature[3] = {};
+                    feature[0].tag = HB_TAG('t', 'n', 'u', 'm');  // Tag for Tabular Figures
+                    feature[0].value = config.tabularNumbers ? 1 : 0;    // 1 to enable, 0 to disable
+                    feature[0].start = 0;                         // Apply from the start of the buffer
+                    feature[0].end = (unsigned int)-1;            // Apply to the end of the buffer
+                
+                    feature[1].tag = HB_TAG('z', 'e', 'r', 'o');  // Tag for slashed zeros
+                    feature[1].value = config.slashedZero ? 1 : 0;       // 1 to enable, 0 to disable
+                    feature[1].start = 0;                         // Apply from the start of the buffer
+                    feature[1].end = (unsigned int)-1;            // Apply to the end of the buffer
+                
+                    // Required otherwise we get tons of ligatures with modern fonts like SF-Pro
+                    feature[2].tag = HB_TAG('l', 'i', 'g', 'a');  // Tag for enabling ligatures
+                    feature[2].value = 0;                         // 1 to enable, 0 to disable
+                    feature[2].start = 0;                         // Apply from the start of the buffer
+                    feature[2].end = (unsigned int)-1;            // Apply to the end of the buffer
+                
+                    hb_shape(hb_font, hb_buffer, &feature[0], 3);
+
+                    unsigned int glyph_count = 0;
+                    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(hb_buffer, &glyph_count);
+                    // Make sure that hb_shape has not added glyphs
+                    if (glyph_count != 2) {
+                        reshapeCount ++;
+                        hb_buffer_destroy(hb_buffer);
+                        continue;
+                    }
+
+                    // Make sure that hb_shape has not changed glyphs on us.
+                    if (glyph_info[0].codepoint != codepoint_l || glyph_info[1].codepoint != codepoint_r) {
+                        reshapeCount ++;
+                        hb_buffer_destroy(hb_buffer);
+                        continue;
+                    }
+
+                    // Make sure that hb_shape has not added glyphs
+                    hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(hb_buffer, &glyph_count);
+                    if (glyph_count != 2) {
+                        reshapeCount ++;
+                        hb_buffer_destroy(hb_buffer);
+                        continue;
+                    }
+
+                    // Convert back to pixel size
+                    float advance = float(config.fontSize) * float(glyph_pos[0].x_advance) / float(x_scale);
+                    // Cnovert back to integer pixels
+                    int advanceInt = int(roundf(advance));
+
+                    // If we have something else than a regular advance and things look good,
+                    // i.e. there has been no reshaping we can actually record it as a new 'kerning' value
+                    if (advanceInt != std::get<1>(ch0).xAdvance) {
+                        FontInfo::Kerning kerning;
+                        kerning.first = std::get<1>(ch0).utf32;
+                        kerning.second = std::get<1>(ch1).utf32;
+                        kerning.amount = advanceInt - std::get<1>(ch0).xAdvance;
+                        f.kernings.push_back(kerning);
+                        specialCount ++;
+                    } else {
+                        regularCount ++;
+                    }
+                    hb_buffer_destroy(hb_buffer);
+                }
+            }
+            hb_font_destroy(hb_font);
+            (void)specialCount;
+            (void)regularCount;
+            (void)reshapeCount;
+            //printf("Regular advances %d, special advances %d, reshape events %d\n", int(regularCount), int(specialCount), int(reshapeCount));
+        } else { // Don't do the old extended method using FT, the above will give way better results
+            for (const auto& ch0 : config.chars) {
+                for (const auto& ch1 : chars) {
+                    const auto k = static_cast<std::int16_t>(font.getKerning(ch0, std::get<1>(ch1), kerningMode));
+                    if (k) {
+                        FontInfo::Kerning kerning;
+                        kerning.first = ch0;
+                        kerning.second = std::get<1>(ch1);
+                        kerning.amount = k;
+                        f.kernings.push_back(kerning);
+                    }
                 }
             }
         }
