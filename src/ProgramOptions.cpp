@@ -3,6 +3,10 @@
 #include <fstream>
 #include <functional>
 #include <regex>
+#include <sstream>
+#include <string>
+#include <charconv>
+#include <iostream>
 #include "HelpException.h"
 #include "external/cxxopts.hpp"
 #include "external/utf8cpp/utf8.h"
@@ -170,37 +174,39 @@ std::set<std::uint32_t> ProgramOptions::parseCharsString(std::string str)
     if (str.empty())
         return std::set<std::uint32_t>();
 
-    const std::regex re(R"(^\d{1,7}(-\d{1,7})?(,\d{1,7}(-\d{1,7})?)*$)");
-    if (!std::regex_match(str, re))
-        throw std::logic_error("invalid chars value");
+    std::set<uint32_t> result;
 
-    const auto ranges = splitStrByDelim(str, ',');
-
-    std::vector<std::pair<std::uint32_t, std::uint32_t>> charList;
-    for (const auto& range : ranges)
-    {
-        auto minMaxStr = splitStrByDelim(range, '-');
-        if (minMaxStr.size() == 1)
-            minMaxStr.push_back(minMaxStr[0]);
-
-        const auto v0 = std::stoul(minMaxStr[0]);
-        const auto v1 = std::stoul(minMaxStr[1]);
+    std::istringstream ss(str);
+    std::string segment;
+    while (std::getline(ss, segment, ',')) {
+        size_t dash_pos = segment.find('-');
+        
+        auto parse_value = [](const std::string& s) {
+            uint32_t val = 0;
+            std::from_chars_result res;
+            if (s.starts_with("0x") || s.starts_with("0X"))
+                res = std::from_chars(s.data() + 2, s.data() + s.size(), val, 16);
+            else
+                res = std::from_chars(s.data(), s.data() + s.size(), val, 10);
+            return val;
+        };
 
         const auto maxUtf32 = 0x10FFFFul;
-        if (v0 > maxUtf32 || v1 > maxUtf32)
-            throw std::out_of_range("invalid utf-32 value (out of range 0x000000..0x10ffff)");
-
-        charList.emplace_back(static_cast<std::uint32_t>(v0), static_cast<std::uint32_t>(v1));
-    }
-
-    std::set<std::uint32_t> result;
-    for (const auto& range : charList)
-    {
-        for (auto v = range.first; v < range.second; ++v)
+        if (dash_pos != std::string::npos) {
+            uint32_t start = parse_value(segment.substr(0, dash_pos));
+            uint32_t end = parse_value(segment.substr(dash_pos + 1));
+            if (start > maxUtf32 || end > maxUtf32)
+                throw std::out_of_range("invalid utf-32 value (out of range 0x000000..0x10ffff)");
+            for (uint32_t i = start; i <= end; ++i) {
+                result.insert(i);
+            }
+        } else {
+            uint32_t v = parse_value(segment);
+            if (v > maxUtf32)
+                throw std::out_of_range("invalid utf-32 value (out of range 0x000000..0x10ffff)");
             result.insert(v);
-        result.insert(range.second);
+        }
     }
-
     return result;
 }
 

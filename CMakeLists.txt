@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.11)
 project(fontbm)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 find_package(Freetype REQUIRED)
 include_directories(${FREETYPE_INCLUDE_DIRS})
 
