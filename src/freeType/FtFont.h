@@ -189,6 +189,17 @@ class Font {
         Extended
     };
 
+    std::set<std::uint32_t> collectChars() const {
+        std::set<std::uint32_t> chars;
+        FT_UInt glyphIndex = 0;
+        uint32_t utf32 = FT_Get_First_Char(face, &glyphIndex);
+        while(glyphIndex) {
+            chars.insert(utf32);
+            utf32 = FT_Get_Next_Char(face, utf32, &glyphIndex);
+        }
+        return chars;
+    }
+
     int getKerning(const std::uint32_t left, const std::uint32_t right, KerningMode kerningMode) const {
         const auto indexLeft = FT_Get_Char_Index(face, left);
         const auto indexRight = FT_Get_Char_Index(face, right);

@@ -92,6 +92,7 @@ struct Config
     bool useMaxTextureCount = false;
     bool monochrome = false;
     bool lightHinting = false;
+    bool allChars = false;
     bool forceAutoHinter = false;
     bool extraInfo = false;
     bool cropTexturesWidth = false;

@@ -14,6 +14,10 @@
 
 // TODO: read .bmfc files (BMFont configuration file)
 
+std::set<std::uint32_t> App::collectAllChars(const ft::Font& font) {
+    return font.collectChars();
+}
+
 std::vector<rbp::RectSize> App::getGlyphRectangles(const Glyphs &glyphs, const std::uint32_t additionalWidth, const std::uint32_t additionalHeight,
                                                    const Config &config)
 {
@@ -622,8 +626,7 @@ void App::execute(const int argc, char *argv[])
 
     ft::Font font(library, config.fontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
     ft::Font secondaryFont(library, config.secondaryFontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
-
-    auto glyphs = collectGlyphInfo(font, secondaryFont, config.chars, config.tabularNumbers, config.slashedZero);
+    auto glyphs = collectGlyphInfo(font, secondaryFont, config.allChars ? collectAllChars(font) : config.chars, config.tabularNumbers, config.slashedZero);
     const auto pages = arrangeGlyphs(glyphs, config);
     if (config.useMaxTextureCount && pages.size() > config.maxTextureCount)
         throw std::runtime_error("too many generated textures (more than --max-texture-count)");

@@ -15,6 +15,7 @@ public:
 private:
     typedef std::map<std::uint32_t, GlyphInfo> Glyphs;
 
+    static std::set<std::uint32_t> collectAllChars(const ft::Font& font);
     static std::vector<rbp::RectSize> getGlyphRectangles(const Glyphs& glyphs, std::uint32_t additionalWidth, std::uint32_t additionalHeight, const Config& config);
     static Glyphs collectGlyphInfo(const ft::Font& font, const ft::Font& secondaryFont, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero);
     static std::set<std::tuple<std::uint32_t, std::uint32_t, bool>> shapeGlyphs(const ft::Font& font, const ft::Font& secondaryFont, const std::set<std::uint32_t>& utf32codes, bool tabularNumbers, bool slashedZero);
