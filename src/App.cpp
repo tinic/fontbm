@@ -624,8 +624,8 @@ void App::execute(const int argc, char *argv[])
     if (config.verbose)
         std::cout << "freetype " << library.getVersionString() << "\n";
 
-    ft::Font font(library, config.fontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
-    ft::Font secondaryFont(library, config.secondaryFontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.forceAutoHinter);
+    ft::Font font(library, config.fontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.noHinting);
+    ft::Font secondaryFont(library, config.secondaryFontFile, config.fontSize, 0, config.monochrome, config.lightHinting, config.noHinting);
     auto glyphs = collectGlyphInfo(font, secondaryFont, config.allChars ? collectAllChars(font) : config.chars, config.tabularNumbers, config.slashedZero);
     const auto pages = arrangeGlyphs(glyphs, config);
     if (config.useMaxTextureCount && pages.size() > config.maxTextureCount)

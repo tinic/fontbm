@@ -44,8 +44,8 @@ class Font {
     };
 
     Font(Library& library, const std::string& fontFile, int ptsize, const int faceIndex,
-         const bool monochrome, const bool light_hinting, const bool force_auto_hinter)
-        : library(library), monochrome_(monochrome), light_hinting_(light_hinting), force_auto_hinter_(force_auto_hinter) {
+         const bool monochrome, const bool light_hinting, const bool no_hinting)
+        : library(library), monochrome_(monochrome), light_hinting_(light_hinting), no_hinting_(no_hinting) {
 
         valid = false; // Set to valid once we go through the entire constructor
 
@@ -137,9 +137,9 @@ class Font {
     GlyphMetrics renderGlyph(std::uint32_t* buffer, std::uint32_t surfaceW, std::uint32_t surfaceH, int x, int y, std::uint32_t glyph, std::uint32_t color) const {
         FT_Int32 loadFlags = FT_LOAD_RENDER;
         if (monochrome_)
-            loadFlags |= FT_LOAD_TARGET_MONO | (force_auto_hinter_ ? FT_LOAD_FORCE_AUTOHINT : 0);
+            loadFlags |= FT_LOAD_TARGET_MONO | (no_hinting_ ? 0 : FT_LOAD_FORCE_AUTOHINT);
         else
-            loadFlags |= force_auto_hinter_ ? FT_LOAD_FORCE_AUTOHINT : (light_hinting_ ? FT_LOAD_TARGET_LIGHT : 0);
+            loadFlags |= (light_hinting_ ? FT_LOAD_TARGET_LIGHT : (no_hinting_ ? 0 : FT_LOAD_FORCE_AUTOHINT));
 
         const int error = FT_Load_Glyph(face, glyph, loadFlags);
         if (error)
@@ -326,7 +326,7 @@ class Font {
     int outline;
     bool monochrome_;
     bool light_hinting_;
-    bool force_auto_hinter_;
+    bool no_hinting_;
 
     /* Whether kerning is desired */
     int kerning;
