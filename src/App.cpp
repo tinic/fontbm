@@ -540,8 +540,13 @@ void App::writeFontInfoFile(const Glyphs &glyphs, const Config &config, const ft
 
                     // Convert back to pixel size
                     float advance = float(config.fontSize) * float(glyph_pos[0].x_advance) / float(x_scale);
-                    // Cnovert back to integer pixels
-                    int advanceInt = int(roundf(advance));
+
+                    // Convert back to integer pixels
+                    // We use ceil/floor here to favor the original advance and reduce pairs.
+                    int advanceInt = int(ceil(advance));
+                    if ( advance > float(std::get<1>(ch0).xAdvance)) {
+                        advanceInt = int(floor(advance));
+                    }
 
                     // If we have something else than a regular advance and things look good,
                     // i.e. there has been no reshaping we can actually record it as a new 'kerning' value
